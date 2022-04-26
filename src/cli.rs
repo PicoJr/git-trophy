@@ -9,12 +9,21 @@ pub fn get_command() -> Command<'static> {
             Arg::new("repository")
                 .help("git repository file path")
                 .takes_value(true)
-                .required(true)
+                .required(true),
         )
         .arg(
             Arg::new("year")
-                .help("year")
+                .help("selected year (if not provided sum out every years)")
+                .long("year")
                 .takes_value(true)
-                .required(false)
+                .required(false),
+        )
+        .arg(
+            Arg::new("names")
+                .help("filter commit with committer name")
+                .long("names")
+                .takes_value(true)
+                .multiple_values(true)
+                .required(false),
         )
 }
