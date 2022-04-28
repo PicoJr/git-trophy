@@ -3,14 +3,13 @@ extern crate clap;
 extern crate anyhow;
 
 mod cli;
+mod model;
 
+use crate::model::build_trophy;
 use anyhow::bail;
 use chrono::{Datelike, TimeZone, Utc};
 use git2::Repository;
-use json::object;
 use std::collections::{HashMap, HashSet};
-use std::fs::File;
-use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
 
@@ -97,14 +96,7 @@ fn main() -> anyhow::Result<()> {
 
     let commit_heightmap = build_history_heightmap(&repo, year_selected, &commiter_names_selected)?;
 
-    let json_heightmap = object! {
-        // quotes on keys are optional
-        "year": year_selected,
-        commits: commit_heightmap,
-    };
-
-    let mut buffer = File::create("heightmap.json")?;
-    buffer.write_all(json::stringify(json_heightmap).as_bytes())?;
+    build_trophy(&commit_heightmap)?;
 
     Ok(())
 }

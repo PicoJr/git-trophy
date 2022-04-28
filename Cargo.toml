@@ -10,4 +10,4 @@ git2 = "0.13"
 clap = {version="3.1.12", features=["cargo"]}
 anyhow = "1.0.57"
 chrono = "0.4.19"
-json = "0.12.4"
+rust-3d = "0.34.0"
