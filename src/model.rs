@@ -3,6 +3,25 @@ use anyhow::anyhow;
 use rust_3d::{io, IsFaceEditableMesh, Mesh3D, Point3D, PointCloud3D, Precision};
 use std::fs::File;
 
+#[allow(clippy::redundant_clone)]
+fn quad3d(points: [Point3D; 8]) -> Vec<(Point3D, Point3D, Point3D)> {
+    let [p0, p1, p2, p3, p4, p5, p6, p7] = points;
+    vec![
+        (p0.clone(), p1.clone(), p2.clone()),
+        (p0.clone(), p2.clone(), p3.clone()), // bottom
+        (p4.clone(), p5.clone(), p6.clone()),
+        (p4.clone(), p6.clone(), p7.clone()), // top
+        (p3.clone(), p0.clone(), p4.clone()),
+        (p3.clone(), p4.clone(), p7.clone()), // left
+        (p1.clone(), p2.clone(), p6.clone()),
+        (p1.clone(), p6.clone(), p5.clone()), // right
+        (p0.clone(), p1.clone(), p5.clone()),
+        (p0.clone(), p5.clone(), p4.clone()), // front
+        (p2.clone(), p3.clone(), p7.clone()),
+        (p2.clone(), p7.clone(), p6.clone()), // back
+    ]
+}
+
 fn commit_brick(
     center: &Point3D,
     length: f64,
@@ -52,20 +71,7 @@ fn commit_brick(
         center.y + half_width,
         center.z + half_height,
     );
-    vec![
-        (p0.clone(), p1.clone(), p2.clone()),
-        (p3.clone(), p2.clone(), p0.clone()), // bottom
-        (p4.clone(), p5.clone(), p6.clone()),
-        (p7.clone(), p6.clone(), p4.clone()), // top
-        (p3.clone(), p0.clone(), p4.clone()),
-        (p4.clone(), p7.clone(), p3.clone()), // left
-        (p1.clone(), p2.clone(), p6.clone()),
-        (p5.clone(), p6.clone(), p1.clone()), // right
-        (p0.clone(), p1.clone(), p5.clone()),
-        (p4.clone(), p5.clone(), p0.clone()), // front
-        (p2.clone(), p3.clone(), p7.clone()),
-        (p6.clone(), p7.clone(), p2.clone()), // back
-    ]
+    quad3d([p0, p1, p2, p3, p4, p5, p6, p7])
 }
 
 fn plinth(
@@ -121,20 +127,7 @@ fn plinth(
         center.y + half_top_width,
         center.z + half_height,
     );
-    vec![
-        (p0.clone(), p1.clone(), p2.clone()),
-        (p3.clone(), p2.clone(), p0.clone()), // bottom
-        (p4.clone(), p5.clone(), p6.clone()),
-        (p7.clone(), p6.clone(), p4.clone()), // top
-        (p3.clone(), p0.clone(), p4.clone()),
-        (p4.clone(), p7.clone(), p3.clone()), // left
-        (p1.clone(), p2.clone(), p6.clone()),
-        (p5.clone(), p6.clone(), p1.clone()), // right
-        (p0.clone(), p1.clone(), p5.clone()),
-        (p4.clone(), p5.clone(), p0.clone()), // front
-        (p2.clone(), p3.clone(), p7.clone()),
-        (p6.clone(), p7.clone(), p2.clone()), // back
-    ]
+    quad3d([p0, p1, p2, p3, p4, p5, p6, p7])
 }
 
 pub fn build_trophy(heightmap: &[CommitCount]) -> anyhow::Result<()> {

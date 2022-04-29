@@ -20,10 +20,17 @@ pub fn get_command() -> Command<'static> {
         )
         .arg(
             Arg::new("names")
-                .help("filter commit with committer name")
+                .help("filter commits with committer name")
                 .long("names")
                 .takes_value(true)
                 .multiple_values(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new("clip")
+                .help("clip commits (limit max number of commits per day)")
+                .long("clip")
+                .takes_value(true)
                 .required(false),
         )
 }

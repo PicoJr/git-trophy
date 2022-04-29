@@ -9,9 +9,11 @@ use crate::model::build_trophy;
 use anyhow::bail;
 use chrono::{Datelike, TimeZone, Utc};
 use git2::Repository;
+use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::usize;
 
 type Year = i32;
 type DaysYear = i64;
@@ -27,6 +29,7 @@ fn build_history_heightmap(
     repo: &Repository,
     year_selected: Option<i32>,
     commiter_names_selected: &Option<Vec<String>>,
+    clip_commit: Option<CommitCount>,
 ) -> anyhow::Result<Vec<CommitCount>> {
     let mut walker = repo.revwalk()?;
     walker.push_glob("*")?;
@@ -68,7 +71,14 @@ fn build_history_heightmap(
         .map(|year_day| {
             years
                 .iter()
-                .map(|year| commit_history.get(&(*year, year_day)).unwrap_or(&0))
+                .map(|year| {
+                    let commit_count = commit_history.get(&(*year, year_day)).unwrap_or(&0);
+
+                    match clip_commit {
+                        None => *commit_count,
+                        Some(max_commit_count) => min(*commit_count, max_commit_count),
+                    }
+                })
                 .sum()
         })
         .collect();
@@ -80,10 +90,16 @@ fn main() -> anyhow::Result<()> {
     let matches = cli::get_command().get_matches();
     let repository_path = matches.value_of("repository").expect("compulsory argument");
     let year = matches.value_of("year").map(|s| i32::from_str(s));
+    let clip = matches.value_of("clip").map(|s| usize::from_str(s));
     let commiter_names_selected: Option<Vec<String>> = matches
         .values_of("names")
         .map(|names| names.into_iter().map(String::from).collect());
     let year_selected = match year {
+        None => None,
+        Some(Err(e)) => bail!("{}", e),
+        Some(Ok(y)) => Some(y),
+    };
+    let clip_commit = match clip {
         None => None,
         Some(Err(e)) => bail!("{}", e),
         Some(Ok(y)) => Some(y),
@@ -94,7 +110,8 @@ fn main() -> anyhow::Result<()> {
         Err(e) => panic!("failed to open: {}", e),
     };
 
-    let commit_heightmap = build_history_heightmap(&repo, year_selected, &commiter_names_selected)?;
+    let commit_heightmap =
+        build_history_heightmap(&repo, year_selected, &commiter_names_selected, clip_commit)?;
 
     build_trophy(&commit_heightmap)?;
 
