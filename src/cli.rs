@@ -33,4 +33,12 @@ pub fn get_command() -> Command<'static> {
                 .takes_value(true)
                 .required(false),
         )
+        .arg(
+            Arg::new("output")
+                .help("output file path")
+                .long("output")
+                .default_value("trophy")
+                .takes_value(true)
+                .required(false),
+        )
 }

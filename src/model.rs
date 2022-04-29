@@ -2,6 +2,7 @@ use crate::CommitCount;
 use anyhow::anyhow;
 use rust_3d::{io, IsFaceEditableMesh, Mesh3D, Point3D, PointCloud3D, Precision};
 use std::fs::File;
+use std::path::Path;
 
 #[allow(clippy::redundant_clone)]
 fn quad3d(points: [Point3D; 8]) -> Vec<(Point3D, Point3D, Point3D)> {
@@ -130,7 +131,7 @@ fn plinth(
     quad3d([p0, p1, p2, p3, p4, p5, p6, p7])
 }
 
-pub fn build_trophy(heightmap: &[CommitCount]) -> anyhow::Result<()> {
+pub fn build_trophy(heightmap: &[CommitCount], output_path: &Path) -> anyhow::Result<()> {
     let mut mesh: Mesh3D<Point3D, PointCloud3D<Point3D>, Vec<usize>> = Mesh3D::default();
     let top_length = 52.0;
     let top_width = 7.0;
@@ -172,9 +173,9 @@ pub fn build_trophy(heightmap: &[CommitCount]) -> anyhow::Result<()> {
         mesh.add_face(p0.clone(), p1.clone(), p2.clone());
     }
 
-    let mut buffer = File::create("trophy.ply")?;
+    let mut buffer = File::create(output_path.with_extension("ply").as_path())?;
     io::save_ply_binary(&mut buffer, &mesh, &Precision::P64).map_err(|e| anyhow!("{:?}", e))?;
-    let mut buffer = File::create("trophy.stl")?;
+    let mut buffer = File::create(output_path.with_extension("stl").as_path())?;
     io::save_stl_ascii(&mut buffer, &mesh).map_err(|e| anyhow!("{:?}", e))?;
     Ok(())
 }

@@ -91,6 +91,8 @@ fn main() -> anyhow::Result<()> {
     let repository_path = matches.value_of("repository").expect("compulsory argument");
     let year = matches.value_of("year").map(|s| i32::from_str(s));
     let clip = matches.value_of("clip").map(|s| usize::from_str(s));
+    let output_path = matches.value_of("output").unwrap_or("trophy");
+    let output_path = PathBuf::from_str(output_path)?;
     let commiter_names_selected: Option<Vec<String>> = matches
         .values_of("names")
         .map(|names| names.into_iter().map(String::from).collect());
@@ -113,7 +115,7 @@ fn main() -> anyhow::Result<()> {
     let commit_heightmap =
         build_history_heightmap(&repo, year_selected, &commiter_names_selected, clip_commit)?;
 
-    build_trophy(&commit_heightmap)?;
+    build_trophy(&commit_heightmap, &output_path)?;
 
     Ok(())
 }
