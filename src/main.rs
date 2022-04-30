@@ -29,7 +29,6 @@ fn build_history_heightmap(
     repo: &Repository,
     year_selected: Option<i32>,
     commiter_names_selected: &Option<Vec<String>>,
-    clip_commit: Option<CommitCount>,
 ) -> anyhow::Result<Vec<CommitCount>> {
     let mut walker = repo.revwalk()?;
     walker.push_glob("*")?;
@@ -71,14 +70,7 @@ fn build_history_heightmap(
         .map(|year_day| {
             years
                 .iter()
-                .map(|year| {
-                    let commit_count = commit_history.get(&(*year, year_day)).unwrap_or(&0);
-
-                    match clip_commit {
-                        None => *commit_count,
-                        Some(max_commit_count) => min(*commit_count, max_commit_count),
-                    }
-                })
+                .map(|year| *commit_history.get(&(*year, year_day)).unwrap_or(&0))
                 .sum()
         })
         .collect();
@@ -88,7 +80,9 @@ fn build_history_heightmap(
 
 fn main() -> anyhow::Result<()> {
     let matches = cli::get_command().get_matches();
-    let repository_path = matches.value_of("repository").expect("compulsory argument");
+    let repositories_paths = matches
+        .values_of("repository")
+        .expect("compulsory argument");
     let year = matches.value_of("year").map(|s| i32::from_str(s));
     let clip = matches.value_of("clip").map(|s| usize::from_str(s));
     let output_path = matches.value_of("output").unwrap_or("trophy");
@@ -106,14 +100,35 @@ fn main() -> anyhow::Result<()> {
         Some(Err(e)) => bail!("{}", e),
         Some(Ok(y)) => Some(y),
     };
-    let repository_path = PathBuf::from_str(repository_path)?;
-    let repo = match Repository::open(repository_path.as_path()) {
-        Ok(repo) => repo,
-        Err(e) => panic!("failed to open: {}", e),
-    };
+    let commit_heightmaps: anyhow::Result<Vec<Vec<CommitCount>>> = repositories_paths
+        .into_iter()
+        .map(|repository_path| {
+            let repository_path = PathBuf::from_str(repository_path)?;
+            let repo = match Repository::open(repository_path.as_path()) {
+                Ok(repo) => repo,
+                Err(e) => panic!("failed to open: {}", e),
+            };
+            build_history_heightmap(&repo, year_selected, &commiter_names_selected)
+        })
+        .collect::<anyhow::Result<Vec<Vec<CommitCount>>>>();
 
-    let commit_heightmap =
-        build_history_heightmap(&repo, year_selected, &commiter_names_selected, clip_commit)?;
+    let commit_heightmaps: Vec<Vec<CommitCount>> = commit_heightmaps?;
+
+    let commit_heightmap: Vec<CommitCount> = (0..365)
+        .into_iter()
+        .map(|year_day| {
+            commit_heightmaps
+                .iter()
+                .map(|heightmap| {
+                    let commits = *heightmap.get(year_day).unwrap_or(&0);
+                    match &clip_commit {
+                        None => commits,
+                        Some(max_commits) => min(*max_commits, commits),
+                    }
+                })
+                .sum()
+        })
+        .collect();
 
     build_trophy(&commit_heightmap, &output_path)?;
 

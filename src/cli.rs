@@ -7,8 +7,9 @@ pub fn get_command() -> Command<'static> {
         .about("Generate git trophy for contributors")
         .arg(
             Arg::new("repository")
-                .help("git repository file path")
+                .help("git repository file path (if multiple paths are provided then contributions will be summed across the repositories)")
                 .takes_value(true)
+                .multiple_values(true)
                 .required(true),
         )
         .arg(
