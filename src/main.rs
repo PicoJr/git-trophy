@@ -6,8 +6,8 @@ mod cli;
 mod model;
 
 use crate::model::build_trophy;
-use anyhow::bail;
-use chrono::{Datelike, TimeZone, Utc};
+use anyhow::{anyhow, bail};
+use chrono::{Datelike, MappedLocalTime, TimeZone, Utc};
 use git2::Repository;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
@@ -21,8 +21,12 @@ type CommitYearDay = (Year, DaysYear);
 // year, num_days_year
 type CommitCount = usize;
 
-fn commit_time_as_date(time: &git2::Time) -> chrono::DateTime<Utc> {
-    Utc.timestamp(time.seconds(), 0)
+fn commit_time_as_date(time: &git2::Time) -> anyhow::Result<chrono::DateTime<Utc>> {
+    match Utc.timestamp_opt(time.seconds(), 0) {
+        MappedLocalTime::Single(s) => Ok(s),
+        MappedLocalTime::Ambiguous(_, _) => Err(anyhow!("ambiguous timestamp")),
+        MappedLocalTime::None => Err(anyhow!("failed to convert timestamp to date")),
+    }
 }
 
 fn build_history_heightmap(
@@ -38,7 +42,7 @@ fn build_history_heightmap(
 
     for oid in walker.flatten() {
         if let Ok(commit) = repo.find_commit(oid) {
-            let commit_datetime = commit_time_as_date(&commit.time());
+            let commit_datetime = commit_time_as_date(&commit.time())?;
             let (commit_year, commit_month, commit_day) = (
                 commit_datetime.year(),
                 commit_datetime.month(),
@@ -47,9 +51,13 @@ fn build_history_heightmap(
             if year_selected == Some(commit_year) || year_selected.is_none() {
                 years.insert(commit_year);
             }
-            let num_days_year = (Utc.ymd(commit_year, commit_month, commit_day)
-                - Utc.ymd(commit_year, 1, 1))
-            .num_days();
+            let commit_date = Utc.with_ymd_and_hms(commit_year, commit_month, commit_day, 0, 0, 0);
+            let first_january = Utc.with_ymd_and_hms(commit_year, 1, 1, 0, 0, 0);
+            let num_days_year = match (commit_date, first_january) {
+                (MappedLocalTime::None, _) => Err(anyhow!("days for commit")),
+                (_, MappedLocalTime::None) => Err(anyhow!("days for commit")),
+                _ => Ok((commit_date.unwrap() - first_january.unwrap()).num_days()),
+            }?;
 
             let committer_selected = match (commiter_names_selected, commit.committer().name()) {
                 (None, _) => true,
