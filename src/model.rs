@@ -1,8 +1,14 @@
-use crate::CommitCount;
-use anyhow::anyhow;
-use rust_3d::{io, IsFaceEditableMesh, Mesh3D, Point3D, PointCloud3D, Precision};
 use std::fs::File;
 use std::path::Path;
+
+use anyhow::anyhow;
+use nalgebra::{Point3, Rotation3, Vector3};
+use rust_3d::{io, IsFaceEditableMesh, Mesh3D, Point3D, PointCloud3D, Precision};
+use ttf2mesh::{Quality, TTFFile, Value};
+use ttf2mesh::Mesh as TTFMesh;
+use ttf2mesh::Mesh3d as TTFMesh3d;
+
+use crate::CommitCount;
 
 #[allow(clippy::redundant_clone)]
 fn quad3d(points: [Point3D; 8]) -> Vec<(Point3D, Point3D, Point3D)> {
@@ -131,6 +137,28 @@ fn plinth(
     quad3d([p0, p1, p2, p3, p4, p5, p6, p7])
 }
 
+fn trophy_text(
+    text: String,
+    ttf_font_path: &Path,
+    depth: f32,
+) -> anyhow::Result<Vec<TTFMesh<TTFMesh3d>>> {
+    let mut font = match TTFFile::from_file(ttf_font_path) {
+        Ok(f) => Ok(f),
+        Err(_) => Err(anyhow!("failed to load font: {:?}", ttf_font_path))
+    }?;
+
+    let mut meshes = vec![];
+
+    for char in text.chars() {
+        if let Ok(mut glyph) = font.glyph_from_char(char) {
+            if let Ok(mesh) = glyph.to_3d_mesh(Quality::Medium, depth) {
+                meshes.push(mesh);
+            }
+        }
+    }
+    Ok(meshes)
+}
+
 pub fn build_trophy(heightmap: &[CommitCount], output_path: &Path) -> anyhow::Result<()> {
     let mut mesh: Mesh3D<Point3D, PointCloud3D<Point3D>, Vec<usize>> = Mesh3D::default();
     let top_length = 52.0;
@@ -173,6 +201,72 @@ pub fn build_trophy(heightmap: &[CommitCount], output_path: &Path) -> anyhow::Re
         mesh.add_face(p0.clone(), p1.clone(), p2.clone());
     }
 
+    let trophy_text_meshes = trophy_text(
+        String::from("PicoJr 2024"),
+        Path::new("fonts/FiraCode-Medium.ttf"),
+        0.2,
+    )?;
+
+    let text_max_z = trophy_text_meshes.iter().map(|v| v.iter_vertices().map(
+        |v| {
+            let v = v.val();
+            v.1
+        }).into_iter().reduce(f32::max).unwrap()
+    ).into_iter().reduce(f32::max).unwrap();
+
+    let text_min_z = trophy_text_meshes.iter().map(|v| v.iter_vertices().map(
+        |v| {
+            let v = v.val();
+            v.1
+        }).into_iter().reduce(f32::min).unwrap()
+    ).into_iter().reduce(f32::min).unwrap();
+
+    let max_text_height: f32 = text_max_z - text_min_z;
+    let text_height = 1.8;
+    let text_scaling = text_height / max_text_height;
+    println!("{} {} {} {}", text_scaling, max_text_height, text_max_z, text_min_z);
+
+    let x_axis = Vector3::x_axis();
+    let x = (bottom_margin * 0.5 - top_margin * 0.5).abs();
+    let y = plinth_height;
+    let angle_rad: f32 = y.atan2(x) as f32;
+    let rotation = Rotation3::from_axis_angle(&x_axis, angle_rad);
+    let hyp = (x * x + y * y).sqrt();
+
+    let dhyp = (hyp as f32 - text_height) * 0.5;
+    let dx = angle_rad.cos() * dhyp;
+    let dy = angle_rad.sin() * dhyp;
+
+
+    for (glyph_i, glyph_mesh) in trophy_text_meshes.iter().enumerate() {
+        let vertices = glyph_mesh.iter_vertices().map(|v| v.val()).collect::<Vec<(f32, f32, f32)>>();
+        for face in glyph_mesh.iter_faces() {
+            let (v1, v2, v3) = face.val();
+            let p1 = vertices.get(v1 as usize);
+            let p2 = vertices.get(v2 as usize);
+            let p3 = vertices.get(v3 as usize);
+            match (p1, p2, p3) {
+                (Some(p1), Some(p2), Some(p3)) => {
+                    let translation = Vector3::new(
+                        (glyph_i as f32 * text_scaling) - top_length as f32 * 0.5,
+                        - (top_width + bottom_margin) as f32 * 0.5 + dx,
+                        - plinth_height as f32 * 0.5 + dy,
+                    );
+                    let p1 = (rotation * Point3::new(p1.0, p1.1, p1.2) * text_scaling) + translation;
+                    let p2 = (rotation * Point3::new(p2.0, p2.1, p2.2) * text_scaling) + translation;
+                    let p3 = (rotation * Point3::new(p3.0, p3.1, p3.2) * text_scaling) + translation;
+                    mesh.add_face(
+                        Point3D::new(p1.x as f64, p1.y as f64, p1.z as f64),
+                        Point3D::new(p2.x as f64, p2.y as f64, p2.z as f64),
+                        Point3D::new(p3.x as f64, p3.y as f64, p3.z as f64),
+                    );
+                }
+                _ => {},
+            }
+        }
+
+
+    }
     let mut buffer = File::create(output_path.with_extension("ply").as_path())?;
     io::save_ply_binary(&mut buffer, &mesh, &Precision::P64).map_err(|e| anyhow!("{:?}", e))?;
     let mut buffer = File::create(output_path.with_extension("stl").as_path())?;

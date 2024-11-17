@@ -13,3 +13,5 @@ clap = {version="3.1.12", features=["cargo"]}
 anyhow = "1.0.57"
 chrono = "0.4.19"
 rust-3d = "0.34.0"
+ttf2mesh = "0.2.1"
+nalgebra = "0.33.2"
