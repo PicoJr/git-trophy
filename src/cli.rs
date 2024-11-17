@@ -35,6 +35,20 @@ pub fn get_command() -> Command<'static> {
                 .required(false),
         )
         .arg(
+            Arg::new("ttf_font_path")
+                .help("path to ttf font file such as `FiraCode-Medium.ttf`")
+                .long("font")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
+            Arg::new("side_text")
+                .help("text to write on the side, please provide the TTF font to use using `--font`")
+                .long("text")
+                .takes_value(true)
+                .required(false),
+        )
+        .arg(
             Arg::new("output")
                 .help("output file path")
                 .long("output")

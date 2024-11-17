@@ -5,13 +5,13 @@ extern crate anyhow;
 mod cli;
 mod model;
 
-use crate::model::build_trophy;
+use crate::model::{build_trophy, GeometryConfig};
 use anyhow::{anyhow, bail};
 use chrono::{Datelike, MappedLocalTime, TimeZone, Utc};
 use git2::Repository;
 use std::cmp::min;
 use std::collections::{HashMap, HashSet};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::usize;
 
@@ -95,6 +95,14 @@ fn main() -> anyhow::Result<()> {
     let clip = matches.value_of("clip").map(|s| usize::from_str(s));
     let output_path = matches.value_of("output").unwrap_or("trophy");
     let output_path = PathBuf::from_str(output_path)?;
+
+    let side_text = matches.value_of("side_text").map(String::from);
+    let font_path = matches.value_of("ttf_font_path").map(Path::new);
+
+    if side_text.is_some() && font_path.is_none() {
+        bail!("a side text was provided but no font was provided, please provide a font to use using `--font`");
+    }
+
     let commiter_names_selected: Option<Vec<String>> = matches
         .values_of("names")
         .map(|names| names.into_iter().map(String::from).collect());
@@ -138,7 +146,13 @@ fn main() -> anyhow::Result<()> {
         })
         .collect();
 
-    build_trophy(&commit_heightmap, &output_path)?;
+    build_trophy(
+        &commit_heightmap,
+        side_text,
+        font_path,
+        &output_path,
+        GeometryConfig::default(),
+    )?;
 
     Ok(())
 }
