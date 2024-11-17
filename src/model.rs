@@ -4,9 +4,9 @@ use std::path::Path;
 use anyhow::anyhow;
 use nalgebra::{Point3, Rotation3, Vector3};
 use rust_3d::{io, IsFaceEditableMesh, Mesh3D, Point3D, PointCloud3D, Precision};
-use ttf2mesh::{Quality, TTFFile, Value};
 use ttf2mesh::Mesh as TTFMesh;
 use ttf2mesh::Mesh3d as TTFMesh3d;
+use ttf2mesh::{Quality, TTFFile, Value};
 
 use crate::CommitCount;
 
@@ -144,7 +144,7 @@ fn trophy_text(
 ) -> anyhow::Result<Vec<Option<TTFMesh<TTFMesh3d>>>> {
     let mut font = match TTFFile::from_file(ttf_font_path) {
         Ok(f) => Ok(f),
-        Err(_) => Err(anyhow!("failed to load font: {:?}", ttf_font_path))
+        Err(_) => Err(anyhow!("failed to load font: {:?}", ttf_font_path)),
     }?;
 
     let mut meshes = vec![];
@@ -176,10 +176,10 @@ impl Default for GeometryConfig {
     fn default() -> Self {
         GeometryConfig {
             top_length: 52.0, // weeks
-            top_width: 7.0, // days per week
+            top_width: 7.0,   // days per week
             plinth_height: 2.0,
-            top_margin: 1.0, // 0.5 on both sides of commit
-            bottom_margin: 3.0, // > top margin => slope
+            top_margin: 1.0,             // 0.5 on both sides of commit
+            bottom_margin: 3.0,          // > top margin => slope
             maximum_commit_height: 10.0, // limit commit height
             text_depth: 0.2,
             text_height: 2.0, // must be below sqrt(plinth_height^2 + (bottom_margin * 0.5 - top_margin * 0.5)^2)
@@ -236,31 +236,39 @@ pub fn build_trophy(
             geometry_config.text_depth,
         )?;
 
-        let text_max_z = trophy_text_meshes.iter().filter_map(
-            |v|
-                v.as_ref().map(
-                    |v|
-                        v.iter_vertices().map(
-                            |v| {
-                                let v = v.val();
-                                v.1
-                            }).reduce(f32::max).unwrap()
-                )
-        ).reduce(f32::max).unwrap();
+        let text_max_z = trophy_text_meshes
+            .iter()
+            .filter_map(|v| {
+                v.as_ref().map(|v| {
+                    v.iter_vertices()
+                        .map(|v| {
+                            let v = v.val();
+                            v.1
+                        })
+                        .reduce(f32::max)
+                        .unwrap()
+                })
+            })
+            .reduce(f32::max)
+            .unwrap();
 
-        let text_min_z = trophy_text_meshes.iter().filter_map(
-            |v|
-                v.as_ref().map(
-                    |v|
-                        v.iter_vertices().map(
-                            |v| {
-                                let v = v.val();
-                                v.1
-                            }).reduce(f32::min).unwrap()
-                )
-        ).reduce(f32::min).unwrap();
+        let text_min_z = trophy_text_meshes
+            .iter()
+            .filter_map(|v| {
+                v.as_ref().map(|v| {
+                    v.iter_vertices()
+                        .map(|v| {
+                            let v = v.val();
+                            v.1
+                        })
+                        .reduce(f32::min)
+                        .unwrap()
+                })
+            })
+            .reduce(f32::min)
+            .unwrap();
 
-        let max_text_height= text_max_z - text_min_z;
+        let max_text_height = text_max_z - text_min_z;
         let drop = text_min_z.min(0.0).abs();
         let text_scaling = geometry_config.text_height / max_text_height;
         let drop_scaled = drop * text_scaling;
@@ -268,7 +276,7 @@ pub fn build_trophy(
         let x_axis = Vector3::x_axis();
         let x = (geometry_config.bottom_margin * 0.5 - geometry_config.top_margin * 0.5).abs();
         let y = geometry_config.plinth_height;
-        let angle_rad= y.atan2(x);
+        let angle_rad = y.atan2(x);
         let rotation = Rotation3::from_axis_angle(&x_axis, angle_rad);
         let hyp = (x * x + y * y).sqrt();
         // center the text on the side
@@ -281,7 +289,10 @@ pub fn build_trophy(
 
         for (glyph_i, glyph_mesh) in trophy_text_meshes.iter().enumerate() {
             if let Some(glyph_mesh) = glyph_mesh {
-                let vertices = glyph_mesh.iter_vertices().map(|v| v.val()).collect::<Vec<(f32, f32, f32)>>();
+                let vertices = glyph_mesh
+                    .iter_vertices()
+                    .map(|v| v.val())
+                    .collect::<Vec<(f32, f32, f32)>>();
                 for face in glyph_mesh.iter_faces() {
                     let (v1, v2, v3) = face.val();
                     let p1 = vertices.get(v1 as usize);
@@ -289,13 +300,17 @@ pub fn build_trophy(
                     let p3 = vertices.get(v3 as usize);
                     if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
                         let translation_after_rotation = Vector3::new(
-                            (glyph_i as f32 * text_scaling * 0.5) - geometry_config.top_length * 0.5,
-                            - (geometry_config.top_width + geometry_config.bottom_margin) * 0.5 + dx,
-                            - geometry_config.plinth_height * 0.5 + dy,
+                            (glyph_i as f32 * text_scaling * 0.5)
+                                - geometry_config.top_length * 0.5,
+                            -(geometry_config.top_width + geometry_config.bottom_margin) * 0.5 + dx,
+                            -geometry_config.plinth_height * 0.5 + dy,
                         );
-                        let p1 = (rotation * Point3::new(p1.0, p1.1, p1.2) * text_scaling) + translation_after_rotation;
-                        let p2 = (rotation * Point3::new(p2.0, p2.1, p2.2) * text_scaling) + translation_after_rotation;
-                        let p3 = (rotation * Point3::new(p3.0, p3.1, p3.2) * text_scaling) + translation_after_rotation;
+                        let p1 = (rotation * Point3::new(p1.0, p1.1, p1.2) * text_scaling)
+                            + translation_after_rotation;
+                        let p2 = (rotation * Point3::new(p2.0, p2.1, p2.2) * text_scaling)
+                            + translation_after_rotation;
+                        let p3 = (rotation * Point3::new(p3.0, p3.1, p3.2) * text_scaling)
+                            + translation_after_rotation;
                         mesh.add_face(
                             Point3D::new(p1.x as f64, p1.y as f64, p1.z as f64),
                             Point3D::new(p2.x as f64, p2.y as f64, p2.z as f64),
