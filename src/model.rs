@@ -221,7 +221,7 @@ pub fn build_trophy(
                 y as f64 - geometry_config.top_width as f64 * 0.5 + 0.5,
                 brick_height_normalized * 0.5 + geometry_config.plinth_height as f64 * 0.5,
             );
-            let brick = commit_brick(&brick_center, 1.0, 1.0, brick_height_normalized as f64);
+            let brick = commit_brick(&brick_center, 1.0, 1.0, brick_height_normalized);
             brick_faces.extend_from_slice(brick.as_slice());
         }
     }
@@ -231,7 +231,7 @@ pub fn build_trophy(
 
     if let Some(side_text) = side_text {
         let trophy_text_meshes = trophy_text(
-            String::from(side_text),
+            side_text,
             ttf_font_path.ok_or_else(|| anyhow!("please provide a TTF font path"))?,
             geometry_config.text_depth,
         )?;
@@ -244,9 +244,9 @@ pub fn build_trophy(
                             |v| {
                                 let v = v.val();
                                 v.1
-                            }).into_iter().reduce(f32::max).unwrap()
+                            }).reduce(f32::max).unwrap()
                 )
-        ).into_iter().reduce(f32::max).unwrap();
+        ).reduce(f32::max).unwrap();
 
         let text_min_z = trophy_text_meshes.iter().filter_map(
             |v|
@@ -256,9 +256,9 @@ pub fn build_trophy(
                             |v| {
                                 let v = v.val();
                                 v.1
-                            }).into_iter().reduce(f32::min).unwrap()
+                            }).reduce(f32::min).unwrap()
                 )
-        ).into_iter().reduce(f32::min).unwrap();
+        ).reduce(f32::min).unwrap();
 
         let max_text_height= text_max_z - text_min_z;
         let drop = text_min_z.min(0.0).abs();
@@ -287,23 +287,20 @@ pub fn build_trophy(
                     let p1 = vertices.get(v1 as usize);
                     let p2 = vertices.get(v2 as usize);
                     let p3 = vertices.get(v3 as usize);
-                    match (p1, p2, p3) {
-                        (Some(p1), Some(p2), Some(p3)) => {
-                            let translation_after_rotation = Vector3::new(
-                                (glyph_i as f32 * text_scaling * 0.5) - geometry_config.top_length * 0.5,
-                                - (geometry_config.top_width + geometry_config.bottom_margin) * 0.5 + dx,
-                                - geometry_config.plinth_height * 0.5 + dy,
-                            );
-                            let p1 = (rotation * Point3::new(p1.0, p1.1, p1.2) * text_scaling) + translation_after_rotation;
-                            let p2 = (rotation * Point3::new(p2.0, p2.1, p2.2) * text_scaling) + translation_after_rotation;
-                            let p3 = (rotation * Point3::new(p3.0, p3.1, p3.2) * text_scaling) + translation_after_rotation;
-                            mesh.add_face(
-                                Point3D::new(p1.x as f64, p1.y as f64, p1.z as f64),
-                                Point3D::new(p2.x as f64, p2.y as f64, p2.z as f64),
-                                Point3D::new(p3.x as f64, p3.y as f64, p3.z as f64),
-                            );
-                        }
-                        _ => {},
+                    if let (Some(p1), Some(p2), Some(p3)) = (p1, p2, p3) {
+                        let translation_after_rotation = Vector3::new(
+                            (glyph_i as f32 * text_scaling * 0.5) - geometry_config.top_length * 0.5,
+                            - (geometry_config.top_width + geometry_config.bottom_margin) * 0.5 + dx,
+                            - geometry_config.plinth_height * 0.5 + dy,
+                        );
+                        let p1 = (rotation * Point3::new(p1.0, p1.1, p1.2) * text_scaling) + translation_after_rotation;
+                        let p2 = (rotation * Point3::new(p2.0, p2.1, p2.2) * text_scaling) + translation_after_rotation;
+                        let p3 = (rotation * Point3::new(p3.0, p3.1, p3.2) * text_scaling) + translation_after_rotation;
+                        mesh.add_face(
+                            Point3D::new(p1.x as f64, p1.y as f64, p1.z as f64),
+                            Point3D::new(p2.x as f64, p2.y as f64, p2.z as f64),
+                            Point3D::new(p3.x as f64, p3.y as f64, p3.z as f64),
+                        );
                     }
                 }
             }

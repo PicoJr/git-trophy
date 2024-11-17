@@ -13,7 +13,6 @@ use std::cmp::min;
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::usize;
 
 type Year = i32;
 type DaysYear = i64;
@@ -91,8 +90,8 @@ fn main() -> anyhow::Result<()> {
     let repositories_paths = matches
         .values_of("repository")
         .expect("compulsory argument");
-    let year = matches.value_of("year").map(|s| i32::from_str(s));
-    let clip = matches.value_of("clip").map(|s| usize::from_str(s));
+    let year = matches.value_of("year").map(i32::from_str);
+    let clip = matches.value_of("clip").map(usize::from_str);
     let output_path = matches.value_of("output").unwrap_or("trophy");
     let output_path = PathBuf::from_str(output_path)?;
 
@@ -131,7 +130,6 @@ fn main() -> anyhow::Result<()> {
     let commit_heightmaps: Vec<Vec<CommitCount>> = commit_heightmaps?;
 
     let commit_heightmap: Vec<CommitCount> = (0..365)
-        .into_iter()
         .map(|year_day| {
             commit_heightmaps
                 .iter()
